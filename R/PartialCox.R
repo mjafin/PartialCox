@@ -21,13 +21,11 @@
 ### Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
 ### MA 02111-1307, USA
 
-PartialCox = function(Xtrain, SurvTimes, EventIndicator, ncomp=3, univbetas=c())
+PartialCox = function(Xtrain, SurvObject, ncomp=3, univbetas=c())
 {
-  require("survival")
-  #require("Hmisc")
+  #require("survival")
   if (!is.matrix(Xtrain)) stop("Training data must be given as matrix!")
-  if (missing(SurvTimes)) stop("Survival times are missing!")
-  if (missing(EventIndicator)) stop("Event indicator vector missing!")
+  if (!is.Surv(SurvObject)) stop("SurvObject must be given as an object of Surv!")
   Xdim = dim(Xtrain)
   if (min(Xdim)<ncomp){
     padding = TRUE
@@ -49,7 +47,7 @@ PartialCox = function(Xtrain, SurvTimes, EventIndicator, ncomp=3, univbetas=c())
       #test1 = list(Xcen=Xcen[,ii])
       #model = coxph(SurvObj ~ Xcen, test1)
       #univbetas[ii] = model$coefficients
-      modelfit = suppressWarnings(coxph.fit(x=Xcen[,ii, drop = F],y=cbind(SurvTimes,EventIndicator),strata = c(), offset = c(), init = c(), control = control, weights = c(), method = "efron", rownames = rownames(Xcen)))
+      modelfit = suppressWarnings(coxph.fit(x=Xcen[,ii, drop = F],y=as.matrix(SurvObject),strata = c(), offset = c(), init = c(), control = control, weights = c(), method = "efron", rownames = rownames(Xcen)))
       univbetas[ii] = modelfit$coefficients
     }
   }
@@ -80,7 +78,7 @@ PartialCox = function(Xtrain, SurvTimes, EventIndicator, ncomp=3, univbetas=c())
       w[,jjj] = as.matrix(apply(Vcur,2,var),nrow=Xdim[2])
       w[,jjj] = w[,jjj]/sum(w[,jjj]) # update weights
       for (kkk in 1:Xdim[2]){
-	  temp = suppressWarnings(coxph.fit(x=cbind(T[,1:(jjj-1)],Vcur[,kkk]), y=cbind(SurvTimes,EventIndicator),strata = c(), offset = c(), init = c(), control = control, weights = c(), method = "efron", rownames = rownames(Xcen)))
+	  temp = suppressWarnings(coxph.fit(x=cbind(T[,1:(jjj-1)],Vcur[,kkk]), y=as.matrix(SurvObject),strata = c(), offset = c(), init = c(), control = control, weights = c(), method = "efron", rownames = rownames(Xcen)))
 	  b[kkk,jjj] = temp$coefficients[length(temp$coefficients)] # pick the last one, corresponding to the left-over data
       }
       T[,jjj] = crossprod(t(Vcur), w[,jjj,drop=F]*b[,jjj,drop=F] )       
@@ -88,7 +86,7 @@ PartialCox = function(Xtrain, SurvTimes, EventIndicator, ncomp=3, univbetas=c())
   }
   
   # fit T:s to the data and reverse engineer weights for the original Xcen
-  Tb = suppressWarnings(coxph.fit(x=T, y=cbind(SurvTimes,EventIndicator),strata = c(), offset = c(), init = c(), control = control, weights = c(), method = "efron", rownames = rownames(Xcen)))
+  Tb = suppressWarnings(coxph.fit(x=T, y=as.matrix(SurvObject),strata = c(), offset = c(), init = c(), control = control, weights = c(), method = "efron", rownames = rownames(Xcen)))
   loadings[,1] = as.vector(Tb$coefficients[1]) * w[,1,drop=F]*b[,1,drop=F]
   if(ncompeval>=2){
     for (lll in 2:ncompeval){
@@ -96,7 +94,6 @@ PartialCox = function(Xtrain, SurvTimes, EventIndicator, ncomp=3, univbetas=c())
     }
   }
 
-  
   beta = as.matrix(rowSums(loadings),ncol=1)
   out = list(beta=beta, univbetas=univbetas, loadings=loadings, 
              predcoef=cbind(means, beta))

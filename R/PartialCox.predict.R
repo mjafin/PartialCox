@@ -20,3 +20,10 @@
 ### License along with this program; if not, write to the Free
 ### Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
 ### MA 02111-1307, USA
+
+# Given a trained model, apply the model to test data and return risk scores (negative values represent low risk and positive values high risk)
+PartialCox.predict = function(Xtest, PartialCoxModel){
+  if (!is.matrix(Xtest)) stop("Test data must be given as a matrix with samples in rows!")
+  out = sweep(Xtest, 2, PartialCoxModel$predcoef[,1]) %*% PartialCoxModel$predcoef[,2]
+  return (out)
+}
